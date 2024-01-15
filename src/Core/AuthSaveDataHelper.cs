@@ -11,7 +11,7 @@ namespace SpotifyKnob.Core
 
         public static bool LoadAuthData(out AuthSaveData authSaveData)
         {
-            authSaveData = null;
+            authSaveData = new AuthSaveData();
             var serializer = new XmlSerializer(typeof(AuthSaveData));
 
             if (!File.Exists(_authSaveDataPath))

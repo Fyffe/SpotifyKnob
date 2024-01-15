@@ -25,7 +25,6 @@ namespace SpotifyKnob.Core
         private EmbedIOAuthServer _server;
         private SpotifyClient _client;
         private AuthSaveData _authSaveData;
-        private string _verifier;
 
         private CancellationTokenSource _stateRefreshCTS;
 
@@ -38,8 +37,6 @@ namespace SpotifyKnob.Core
 
         public async void CreateSpotifyClient()
         {
-            _authSaveData = new AuthSaveData();
-
             if(AuthSaveDataHelper.LoadAuthData(out _authSaveData))
             {
                 CreateSpotifyClient(_authSaveData);
@@ -69,85 +66,6 @@ namespace SpotifyKnob.Core
             };
 
             BrowserUtil.Open(loginRequest.ToUri());
-        }
-
-        private async Task OnAuthorizationCodeReceived(object sender, AuthorizationCodeResponse response)
-        {
-            await _server.Stop();
-
-            var tokenResponse = await new OAuthClient().RequestToken(
-                new PKCETokenRequest(_userData.ClientId, response.Code, _server.BaseUri, _verifier));
-            var authenticator = new PKCEAuthenticator(_userData.ClientId, tokenResponse);
-            _client = new SpotifyClient(SpotifyClientConfig.CreateDefault().WithAuthenticator(authenticator));
-            _authSaveData.AuthToken = tokenResponse.AccessToken;
-            _authSaveData.RefreshToken = tokenResponse.RefreshToken;
-
-            AuthSaveDataHelper.SaveAuthData(_authSaveData);
-            ConnectionReceivedEvent?.Invoke(true, null);
-        }
-
-        private async void CreateSpotifyClient(AuthSaveData authSaveData)
-        {
-            bool success = true;
-            string error = null;
-
-            try
-            {
-                var tokenResponse = await new OAuthClient().RequestToken(
-                  new PKCETokenRefreshRequest(_userData.ClientId, authSaveData.RefreshToken)
-                );
-
-                var authenticator = new PKCEAuthenticator(_userData.ClientId, tokenResponse);
-                _client = new SpotifyClient(SpotifyClientConfig.CreateDefault().WithAuthenticator(authenticator));
-                _authSaveData.AuthToken = tokenResponse.AccessToken;
-                _authSaveData.RefreshToken = tokenResponse.RefreshToken;
-
-                AuthSaveDataHelper.SaveAuthData(_authSaveData);
-
-                _stateRefreshCTS = new CancellationTokenSource();
-
-                Task.Factory.StartNew(RefreshState);
-            }
-            catch(Exception ex)
-            {
-                success = false;
-                error = ex.Message;
-            }
-
-            ConnectionReceivedEvent?.Invoke(success, error);
-        }
-
-        private async void RefreshState()
-        {
-            while(true)
-            {
-                if(_stateRefreshCTS.Token.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                Thread.Sleep(_stateRefreshCooldown);
-
-                try
-                {
-                    var state = await _client.Player.GetCurrentPlayback(default);
-                    CurrentState = state;
-
-                    StateRefreshed?.Invoke();
-                }
-                catch (Exception)
-                {
-                }
-            }
-        }
-
-        private async Task OnErrorReceived(object sender, string error, string state)
-        {
-            Console.WriteLine($"Aborting authorization, error received: {error}");
-
-            await _server.Stop();
-
-            ConnectionReceivedEvent?.Invoke(false, error);
         }
 
         public async void GetUserProfile()
@@ -193,7 +111,7 @@ namespace SpotifyKnob.Core
             catch (Exception ex)
             {
                 CurrentStateReceivedEvent?.Invoke(false, ex.Message);
-            }            
+            }
 
             await Task.Delay(_stateGetterCooldown);
 
@@ -202,7 +120,7 @@ namespace SpotifyKnob.Core
 
         public async void ChangeVolume(int newVolume)
         {
-            if(_client == null)
+            if (_client == null)
             {
                 return;
             }
@@ -213,7 +131,7 @@ namespace SpotifyKnob.Core
             }
             catch (Exception ex)
             {
-                if(ex is APIException apiEx && apiEx.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                if (ex is APIException apiEx && apiEx.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     CurrentState = null;
                 }
@@ -222,7 +140,7 @@ namespace SpotifyKnob.Core
 
         public async void Pause()
         {
-            if(_client == null)
+            if (_client == null)
             {
                 return;
             }
@@ -231,7 +149,7 @@ namespace SpotifyKnob.Core
             {
                 await _client.Player.PausePlayback(default);
             }
-            catch(Exception)
+            catch (Exception)
             {
             }
         }
@@ -250,6 +168,85 @@ namespace SpotifyKnob.Core
             catch (Exception)
             {
             }
+        }
+
+        private async void CreateSpotifyClient(AuthSaveData authSaveData)
+        {
+            bool success = true;
+            string error = null;
+
+            try
+            {
+                var tokenResponse = await new OAuthClient().RequestToken(
+                  new PKCETokenRefreshRequest(_userData.ClientId, authSaveData.RefreshToken)
+                );
+
+                var authenticator = new PKCEAuthenticator(_userData.ClientId, tokenResponse);
+                _client = new SpotifyClient(SpotifyClientConfig.CreateDefault().WithAuthenticator(authenticator));
+                _authSaveData.AuthToken = tokenResponse.AccessToken;
+                _authSaveData.RefreshToken = tokenResponse.RefreshToken;
+
+                AuthSaveDataHelper.SaveAuthData(_authSaveData);
+
+                _stateRefreshCTS = new CancellationTokenSource();
+
+                Task.Factory.StartNew(RefreshState);
+            }
+            catch (Exception ex)
+            {
+                success = false;
+                error = ex.Message;
+            }
+
+            ConnectionReceivedEvent?.Invoke(success, error);
+        }
+
+        private async Task OnAuthorizationCodeReceived(object sender, AuthorizationCodeResponse response)
+        {
+            await _server.Stop();
+
+            var tokenResponse = await new OAuthClient().RequestToken(
+                new PKCETokenRequest(_userData.ClientId, response.Code, _server.BaseUri, _authSaveData.Verifier));
+            var authenticator = new PKCEAuthenticator(_userData.ClientId, tokenResponse);
+            _client = new SpotifyClient(SpotifyClientConfig.CreateDefault().WithAuthenticator(authenticator));
+            _authSaveData.AuthToken = tokenResponse.AccessToken;
+            _authSaveData.RefreshToken = tokenResponse.RefreshToken;
+
+            AuthSaveDataHelper.SaveAuthData(_authSaveData);
+            ConnectionReceivedEvent?.Invoke(true, null);
+        }
+
+        private async void RefreshState()
+        {
+            while(true)
+            {
+                if(_stateRefreshCTS.Token.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                Thread.Sleep(_stateRefreshCooldown);
+
+                try
+                {
+                    var state = await _client.Player.GetCurrentPlayback(default);
+                    CurrentState = state;
+
+                    StateRefreshed?.Invoke();
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
+        private async Task OnErrorReceived(object sender, string error, string state)
+        {
+            Console.WriteLine($"Aborting authorization, error received: {error}");
+
+            await _server.Stop();
+
+            ConnectionReceivedEvent?.Invoke(false, error);
         }
     }
 }

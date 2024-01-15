@@ -66,7 +66,7 @@ namespace SpotifyKnob.MVVM.ViewModel
         private SpotifyConnection _spotify;
         private GlobalKeyboardHook _keyboardHook;
         private bool _isVolumeOnCooldown = false;
-        private bool _isMuted = false;
+        private bool _isMuted => CurrentVolume == 0;
         private int _unmuteVolume = 0;
         private bool _isPaused = false;
 
@@ -207,14 +207,14 @@ namespace SpotifyKnob.MVVM.ViewModel
                 DisplayName = "Mute/Unmute Hotkey",
                 HotkeyType = HotkeyType.Mute,
                 BoundAction = MuteUnmute,
-                Cooldown = 500
+                Cooldown = 125
             });
             Hotkeys.Add(new HotkeyModel
             {
                 DisplayName = "Play/Pause Hotkey",
                 HotkeyType = HotkeyType.Pause,
                 BoundAction = PauseResume,
-                Cooldown = 500
+                Cooldown = 125
             });
         }
 
@@ -282,14 +282,9 @@ namespace SpotifyKnob.MVVM.ViewModel
 
         private void Connect(object o)
         {
-            bool isInvalid = _userSaveData == null
-                || string.IsNullOrEmpty(_userSaveData.ClientId)
-                || string.IsNullOrEmpty(_userSaveData.Secret)
-                || string.IsNullOrEmpty(_userSaveData.Username);
-
-            if(isInvalid)
+            if(!ValidateUserData())
             {
-                MessageBox.Show("Please fill out API data in User.xml file!", "Spotify Knob", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Please fill out API data in the User.xml file!", "Spotify Knob", MessageBoxButton.OK, MessageBoxImage.Error);
 
                 return;
             }
@@ -298,6 +293,17 @@ namespace SpotifyKnob.MVVM.ViewModel
             new Task(_spotify.CreateSpotifyClient).Start();
 
             ConnectionState = ConnectionState.Connecting;
+        }
+
+        private bool ValidateUserData()
+        {
+            return _userSaveData != null
+                && !string.IsNullOrEmpty(_userSaveData.ClientId)
+                && _userSaveData.ClientId != "CLIENT_ID"
+                && !string.IsNullOrEmpty(_userSaveData.Username)
+                && _userSaveData.Username != "USERNAME"
+                && !string.IsNullOrEmpty(_userSaveData.Secret)
+                && _userSaveData.Secret != "SECRET";
         }
 
         private void OnConnectionResponse(bool success, string error)
@@ -326,7 +332,6 @@ namespace SpotifyKnob.MVVM.ViewModel
         private void OnStateRefreshed()
         {
             CurrentVolume = _spotify.CurrentState.Device.VolumePercent.Value;
-            _isMuted = CurrentVolume == 0;
             _isPaused = !_spotify.CurrentState.IsPlaying;
         }
 
@@ -391,7 +396,6 @@ namespace SpotifyKnob.MVVM.ViewModel
             }
 
             _spotify.ChangeVolume(CurrentVolume);
-            _isMuted = !_isMuted;
         }
 
         private void ChangeCurrentVolume(int volume)
@@ -409,10 +413,10 @@ namespace SpotifyKnob.MVVM.ViewModel
             Task.Run(async () =>
             {
                 _isVolumeOnCooldown = true;
-                _spotify.ChangeVolume(CurrentVolume);
 
                 await Task.Delay(_volumeCooldown);
 
+                _spotify.ChangeVolume(CurrentVolume);
                 _isVolumeOnCooldown = false;
             });
         }
