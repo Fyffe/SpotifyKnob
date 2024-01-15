@@ -31,3 +31,4 @@ You can set up hotkeys for:
 Maybe some time in the future:
 - hotkeys with modifiers
 - actual knob to change the volume (just for fun)
+- hide to tray
