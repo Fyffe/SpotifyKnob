@@ -1,3 +1,5 @@
+![Logo](https://raw.githubusercontent.com/Fyffe/SpotifyKnob/master/src/Images/SpotifyKnob_128.png)
+
 # Spotify Knob
 
 A simple, lightweight app to control your Spotify playback with keyboard hotkeys. Made in about 8 hours total just to try out the WPF so expect minor bugs.
