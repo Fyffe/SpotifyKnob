@@ -1,0 +1,42 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style TargetType="ListViewItem" x:Key="HotkeyCard">
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="#1db954"/>
+            </Trigger>
+        </Style.Triggers>
+        
+        <Setter Property="Background" Value="#535353"/>
+
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Grid Margin="4, 2, 4, 2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="4*"/>
+                        </Grid.ColumnDefinitions>
+                        <Label Content="{Binding DisplayName}" 
+                               Foreground="#ffffff"
+                               FontSize="10.5"
+                               Height="32"
+                               VerticalContentAlignment="Center"
+                               />
+                        <Border Background="{TemplateBinding Background}"
+                                Grid.Column="1"
+                                CornerRadius="10"
+                                Height="32"
+                                Margin="8,4,8,4">
+                            <Label Content="{Binding BoundKeyReadable}"
+                                   Foreground="#ffffff"
+                                   FontSize="12"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>
